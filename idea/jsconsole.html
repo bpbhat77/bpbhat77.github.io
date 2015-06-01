@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>jsconsole</title>
+<script src="./jsconsole/complete.ly.1.0.1.js"></script>
+<script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+
+</head>
+<body style="overflow-y: scroll; margin:0;font-family:sans-serif;">
+   
+    <div style="position: fixed; color:#000;font-family:monospace; font-size: 21px; white-space: nowrap; z-index: 1; top:0px; width: 100%; 
+	padding:12px 0 12px 72px; height:22px;background-color:#ABA;border-bottom:2px solid #444;border-top:2px solid #444">
+	 <b>JS Console </b> - e.g. type <i>document.location.href</i>
+	</div>
+	<div id="main" style="margin:102px 60px 32px 72px; font-family:monospace; font-size: 21px;">
+		<div id="wrap"></div>
+	</div>
+	
+	<script>
+	var pv = completely(document.getElementById('wrap'),{
+		promptInnerHTML : '&gt;', 
+		fontSize: '21px',
+		fontFamily:'monospace'
+	});
+	var historyCount=sessionStorage.length;
+	var historyCount_cur=0;
+	var historyCount_max=sessionStorage.length;
+	var main = document.getElementById('main');
+	pv.onArrowDown = function () {
+				if(historyCount_cur > historyCount_max || historyCount_cur < 0) historyCount_cur=0;
+				var temptext  = sessionStorage.getItem('jsconsole'+historyCount_cur);
+				console.log(temptext);
+
+			pv.setText(temptext);
+			historyCount_cur--;
+	}
+	pv.onArrowUp= function () {
+			if(historyCount_cur > historyCount_max || historyCount_cur < 0) historyCount_cur=0;
+				var temptext  = sessionStorage.getItem('jsconsole'+historyCount_cur);
+				console.log(temptext);
+
+			pv.setText(temptext);
+			historyCount_cur++;
+	}
+	pv.onEnter = function() {
+		var text = pv.input.value;
+			sessionStorage.setItem('jsconsole'+historyCount++, text);
+						historyCount_max=historyCount;
+
+		try {
+			resp = eval(text);	
+		} catch (e) {
+			resp = 'error:<i>'+e+'</i>';
+		}
+		var divIn = document.createElement('div');
+		divIn.innerHTML = '&gt;'+text;
+		main.appendChild(divIn);
+		if (resp) {
+			var divOut = document.createElement('div');
+			divOut.style.color = '#34A';
+			divOut.innerHTML = ''+jsonToString(resp);
+			main.appendChild(divOut);
+		}
+		pv.setText('');
+		main.appendChild(pv.wrapper);
+		pv.wrapper.scrollIntoView();
+		setTimeout(function() { pv.input.focus() },0); // for IE
+	}
+	function jsonToString(json){
+
+		return shallowStringify(json);
+
+	}
+	function shallowStringify(obj, onlyProps, skipTypes) {
+  var objType = typeof(obj);
+  if(['function', 'undefined'].indexOf(objType)>=0) {
+    return objType;
+  } else if(['string', 'number', 'boolean'].indexOf(objType)>=0) {
+    return obj; // will toString
+  }
+  // objType == 'object'
+  var res = '{';
+  for (p in obj) { // property in object
+    if(typeof(onlyProps)!=='undefined' && onlyProps) {
+      // Only show property names as values may show too much noise.
+      // After this you can trace more specific properties to debug
+      res += p+', ';
+    } else {
+      var valType = typeof(obj[p]);
+      if(typeof(skipTypes)=='undefined') {
+        skipTypes = ['function'];
+      }
+      if(skipTypes.indexOf(valType)>=0) {
+        res += p+': '+valType+', ';
+      } else {
+        res += p+': '+obj[p]+', ';
+      }
+    }
+  }
+  res += '}';
+  return res;
+}
+
+
+	
+	function extractTextForAutocompletion(code) {
+		
+		var isLetterOrDigitOrWhitespaceOrDot = function(ch) { 
+			return ch === '.'         ||
+			       (ch>='A'&&ch<='Z') ||
+			       (ch>='a'&&ch<='z') ||
+			       (ch>='0'&&ch<='9') ||
+			       ch==='$'           ||
+			       ch==='_'           ||
+			       ' \n\r\t\f\x0b\xa0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u2028\u2029\u3000'.indexOf(ch) !==-1; // whitespaces
+		};
+		
+		var snip = code;
+		for (var i=code.length-1;i>=0;i--) {
+			var ch = code.charAt(i);
+			if (isLetterOrDigitOrWhitespaceOrDot(ch)===false) {
+				snip = code.substring(i+1);
+				break; 
+			}
+		}
+		
+		var ix = snip.lastIndexOf('.');
+		if (ix === -1) return { v1 :'', v2 : snip };
+		else           return { v1 : snip.substring(0,ix),
+			                    v2 : snip.substring(ix+1) };
+		
+	};
+	
+	pv.options = [];
+	/* itrating object anf adding to auto complete*/
+    for (var i in window) { pv.options.push(''+i); }
+	pv.options.sort();
+
+	pv.onChange = function (text) {
+		if (text.length == 0) {
+			pv.options = [];
+			pv.repaint();
+			return; 
+		}
+		var v = extractTextForAutocompletion(text);
+		if (v.v1 == '') v.v1 = 'window';
+		try {
+		   oj = eval(v.v1);
+		} catch (ex) {
+		   oj = null;
+		}
+		pv.options =[];
+		for (var i in oj) { pv.options.push(''+i); }
+		pv.options.sort();
+		pv.startFrom = text.lastIndexOf('.')+1;
+		pv.repaint();
+	};
+	
+	setTimeout(function() { pv.input.focus() },0);
+	</script>
+
+
+<span style="visibility: hidden; position: fixed; outline: 0px; margin: 0px; padding: 0px; border: 0px; left: 0px; white-space: pre; font-size: 21px; font-family: monospace; font-weight: normal;">window.</span></body></html>
